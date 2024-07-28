@@ -34,7 +34,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define TRANSMITTER_BOARD
+//#define TRANSMITTER_BOARD
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -65,7 +65,6 @@ static void MX_GPIO_Init(void);
 static void MX_ICACHE_Init(void);
 static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
-static uint16_t Buffercmp(uint8_t *pBuffer1, uint8_t *pBuffer2, uint16_t BufferLength);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -79,151 +78,61 @@ static uint16_t Buffercmp(uint8_t *pBuffer1, uint8_t *pBuffer2, uint16_t BufferL
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
-  /* STM32U5xx HAL library initialization:
-       - Configure the Flash prefetch
-       - Configure the Systick to generate an interrupt each 1 msec
-       - Set NVIC Group Priority to 3
-       - Low Level Initialization
-     */
-  /* USER CODE END 1 */
+	 /* USER CODE BEGIN 1 */
+	  /* STM32U5xx HAL library initialization:
+	       - Configure the Flash prefetch
+	       - Configure the Systick to generate an interrupt each 1 msec
+	       - Set NVIC Group Priority to 3
+	       - Low Level Initialization
+	     */
+	  /* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
+	  /* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+	  HAL_Init();
 
-  /* USER CODE BEGIN Init */
+	  /* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+	  /* USER CODE END Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
+	  /* Configure the system clock */
+	  SystemClock_Config();
 
-  /* Configure the System Power */
-  SystemPower_Config();
+	  /* Configure the System Power */
+	  SystemPower_Config();
 
-  /* USER CODE BEGIN SysInit */
+	  /* USER CODE BEGIN SysInit */
 
-  /* USER CODE END SysInit */
+	  /* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_ICACHE_Init();
-  MX_USART2_UART_Init();
-  /* USER CODE BEGIN 2 */
-  /* Configure LED2 and LED3 */
-  BSP_LED_Init(LED2);
-  BSP_LED_Init(LED3);
+	  /* Initialize all configured peripherals */
+	  MX_GPIO_Init();
+	  MX_ICACHE_Init();
+	  MX_USART2_UART_Init();
+	  /* USER CODE BEGIN 2 */
+	  /* Configure LED2 and LED3 */
+	  BSP_LED_Init(LED2);
+	  BSP_LED_Init(LED3);
 
-#ifdef TRANSMITTER_BOARD
+	  while (1)
+	  {
+		  /* Reset transmission flag */
+		  UartReady = RESET;
 
-  /* Configure User push-button in Interrupt mode */
-  BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
+		  /*##-1- Put UART peripheral in reception process ###########################*/
+		  if (HAL_UART_Receive_IT(&huart2, (uint8_t *)aRxBuffer, RXBUFFERSIZE) != HAL_OK)
+		  {
+		    Error_Handler();
+		  }
 
-  /* Wait for User push-button press before starting the Communication.
-     In the meantime, LED2 is blinking */
-  while (UserButtonStatus == 0)
-  {
-    /* Toggle LED2*/
-    BSP_LED_Toggle(LED2);
-    HAL_Delay(100);
-  }
+		  /*##-2- Wait for the end of the transfer ###################################*/
+		  /* While waiting for message to come from the other board, LED2 is
+		     blinking according to the following pattern: a double flash every half-second */
+		  while (UartReady != SET);
 
-  BSP_LED_Off(LED2);
-
-  /* The board sends the message and expects to receive it back */
-
-  /*##-1- Start the transmission process #####################################*/
-  /* While the UART in reception process, user can transmit data through
-     "aTxBuffer" buffer */
-  if (HAL_UART_Transmit_IT(&huart2, (uint8_t *)aTxBuffer, TXBUFFERSIZE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /*##-2- Wait for the end of the transfer ###################################*/
-  while (UartReady != SET)
-  {
-  }
-
-  /* Reset transmission flag */
-  UartReady = RESET;
-
-  /*##-3- Put UART peripheral in reception process ###########################*/
-  if (HAL_UART_Receive_IT(&huart2, (uint8_t *)aRxBuffer, RXBUFFERSIZE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-#else
-
-  /* The board receives the message and sends it back */
-
-  /*##-1- Put UART peripheral in reception process ###########################*/
-  if (HAL_UART_Receive_IT(&huart2, (uint8_t *)aRxBuffer, RXBUFFERSIZE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-  /*##-2- Wait for the end of the transfer ###################################*/
-  /* While waiting for message to come from the other board, LED2 is
-     blinking according to the following pattern: a double flash every half-second */
-  while (UartReady != SET)
-  {
-    BSP_LED_On(LED2);
-    HAL_Delay(100);
-    BSP_LED_Off(LED2);
-    HAL_Delay(100);
-    BSP_LED_On(LED2);
-    HAL_Delay(100);
-    BSP_LED_Off(LED2);
-    HAL_Delay(500);
-  }
-
-  /* Reset transmission flag */
-  UartReady = RESET;
-  BSP_LED_Off(LED2);
-
-  /*##-3- Start the transmission process #####################################*/
-  /* While the UART in reception process, user can transmit data through
-     "aTxBuffer" buffer */
-  if (HAL_UART_Transmit_IT(&huart2, (uint8_t *)aTxBuffer, TXBUFFERSIZE) != HAL_OK)
-  {
-    Error_Handler();
-  }
-
-#endif /* TRANSMITTER_BOARD */
-
-  /*##-4- Wait for the end of the transfer ###################################*/
-  while (UartReady != SET)
-  {
-  }
-
-  /* Reset transmission flag */
-  UartReady = RESET;
-
-  /*##-5- Compare the sent and received buffers ##############################*/
-  if (Buffercmp((uint8_t *)aTxBuffer, (uint8_t *)aRxBuffer, RXBUFFERSIZE))
-  {
-    Error_Handler();
-  }
-
-  /* Turn on LED2 if test passes then enter infinite loop */
-  BSP_LED_On(LED2);
-
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-
-  }
-  /* USER CODE END 3 */
+	  }
+	  /* USER CODE END 3 */
 }
 
 /**
@@ -351,12 +260,12 @@ static void MX_USART2_UART_Init(void)
 
   /* USER CODE END USART2_Init 1 */
   huart2.Instance = USART2;
-  huart2.Init.BaudRate = 9600;
+  huart2.Init.BaudRate = 921600;
   huart2.Init.WordLength = UART_WORDLENGTH_8B;
   huart2.Init.StopBits = UART_STOPBITS_1;
   huart2.Init.Parity = UART_PARITY_NONE;
   huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_RTS_CTS;
   huart2.Init.OverSampling = UART_OVERSAMPLING_16;
   huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   huart2.Init.ClockPrescaler = UART_PRESCALER_DIV1;
@@ -394,6 +303,7 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -411,8 +321,7 @@ static void MX_GPIO_Init(void)
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *UartHandle)
 {
   /* Set transmission flag: transfer complete */
-  UartReady = SET;
-
+  /* Do Nothing here */
 }
 
 /**
@@ -426,7 +335,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *UartHandle)
 {
   /* Set transmission flag: transfer complete */
   UartReady = SET;
-
+  if (HAL_UART_Transmit_IT(&huart2, (uint8_t *)aTxBuffer, TXBUFFERSIZE) != HAL_OK)
+  {
+    Error_Handler();
+  }
 }
 
 /**
@@ -453,27 +365,6 @@ void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin)
   {
     UserButtonStatus = 1;
   }
-}
-/**
-  * @brief  Compares two buffers.
-  * @param  pBuffer1, pBuffer2: buffers to be compared.
-  * @param  BufferLength: buffer's length
-  * @retval 0  : pBuffer1 identical to pBuffer2
-  *         >0 : pBuffer1 differs from pBuffer2
-  */
-static uint16_t Buffercmp(uint8_t *pBuffer1, uint8_t *pBuffer2, uint16_t BufferLength)
-{
-  while (BufferLength--)
-  {
-    if ((*pBuffer1) != *pBuffer2)
-    {
-      return BufferLength;
-    }
-    pBuffer1++;
-    pBuffer2++;
-  }
-
-  return 0;
 }
 
 /* USER CODE END 4 */
